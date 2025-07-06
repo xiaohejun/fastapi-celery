@@ -11,3 +11,5 @@ $ docker-compose up -d --build
 ```
 
 Open your browser to [http://localhost:8004](http://localhost:8004)
+
+https://testdriven.io/blog/fastapi-and-celery/

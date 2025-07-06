@@ -1,0 +1,26 @@
+# fastapi相关
+fastapi
+uvicorn
+celery
+redis
+pika
+flower
+pydantic_settings
+
+dependency_injector
+dependency-injector[yaml]
+
+# 数据库相关
+sqlmodel
+psycopg2-binary
+# pytest
+# requests
+# uvicorn
+# httpx
+# celery
+# redis
+# flower
+# sse_starlette
+# sqlmodel
+# 测试
+# sse-client-py

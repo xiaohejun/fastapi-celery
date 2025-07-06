@@ -1,0 +1,15 @@
+api:
+  title: fastapi-celery
+  version: 0.1.0
+  description: fastapi-celery
+  host: ${API_HOST}
+  port: ${API_PORT}
+  host_port: ${API_HOST_PORT}
+
+db:
+  url: ${DB_URL}
+  echo: ${DB_ECHO}
+
+celery:
+  broker_url: ${CELERY_BROKER_URL}
+  result_backend: ${CELERY_RESULT_BACKEND}

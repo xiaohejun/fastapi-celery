@@ -1,11 +1,97 @@
-version: '3.8'
-
 services:
-
-  web:
-    build: ./project
+  api:
+    build: .
     ports:
-      - 8004:8000
-    command: uvicorn main:app --host 0.0.0.0 --reload
+      - ${API_HOST_PORT}:${API_PORT}
+    command: python -m app.api.main
     volumes:
-      - ./project:/usr/src/app
+      - .:/appuser/code
+    env_file:
+      - .env
+    restart: always
+    depends_on:
+      worker:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:14-alpine
+    hostname: ${POSTGRES_HOST}
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+    ports:
+      - ${POSTGRES_HOST_PORT}:${POSTGRES_PORT}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    #   # volumes:
+    #   #   - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  rabbitmq:
+    image: rabbitmq:4.1.2-management-alpine
+    hostname: ${RABBITMQ_HOST}
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
+    ports:
+      - ${RABBITMQ_HOST_PORT}:${RABBITMQ_PORT}
+      - ${RABBITMQ_HOST_MGR_PORT}:${RABBITMQ_MGR_PORT}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    # volumes:
+      # - rabbitmq_data:/var/lib/rabbitmq
+      
+  redis:
+    image: redis:7-alpine
+    hostname: ${REDIS_HOST}
+    command: redis-server --requirepass redis_pass
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    ports:
+      - ${REDIS_HOST_PORT}:${REDIS_PORT}
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_pass", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    build: .
+    command: celery -A app.worker.celery_app worker --loglevel=info
+    # command: celery -A worker.celery worker --loglevel=info --logfile=logs/celery.log
+    env_file: # TODO: 后续优化，只加载必要的环境变量
+      - .env
+    volumes:
+      - .:/appuser/code
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.worker.celery_app inspect ping | grep -q 'OK'"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      
+  flower:
+    build: .
+    command: celery --broker=${CELERY_BROKER_URL} flower --port=${FLOWER_PORT}
+    ports:
+      - ${FLOWER_HOST_PORT}:${FLOWER_PORT}
+    environment:
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+    depends_on:
+      worker:
+        condition: service_healthy
+
