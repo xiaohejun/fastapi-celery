@@ -13,6 +13,8 @@ dependency-injector[yaml]
 # 数据库相关
 sqlmodel
 psycopg2-binary
+
+docker
 # pytest
 # requests
 # uvicorn
