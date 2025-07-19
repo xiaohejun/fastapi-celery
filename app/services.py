@@ -39,3 +39,7 @@ class TestService:
 
     def get_all(self) -> Iterator[User]:
         return self._repository.get_all()
+    
+# class InferenceSimTaskService(BaseService):
+#     def __init__(self, inference_sim_task_repository: InferenceSimTaskRepository) -> None:
+#         self._repository: InferenceSimTaskRepository = inference_sim_task_repository

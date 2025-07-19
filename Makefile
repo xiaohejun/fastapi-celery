@@ -12,7 +12,7 @@ test:
 
 .PHONY: up
 up:
-	COMPOSE_BAKE=true docker-compose up
+	COMPOSE_BAKE=true docker-compose up $(s)
 
 up-scale:
 	docker-compose up --build --scale worker=3

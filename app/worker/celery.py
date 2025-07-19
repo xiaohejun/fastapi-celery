@@ -6,17 +6,14 @@ import time
 from celery import Celery
 
 
-# celery_app = Celery(__name__)
-# celery_app.conf.broker_url = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379")
-# celery_app.conf.result_backend = os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6379")
 from app.core.dependencies import Container
 config = Container.config()
 
-celery_app = Celery(
+app = Celery(
     __name__,
     broker=config["celery"]["broker_url"],
     backend=config["celery"]["result_backend"],
-    # include=["app.tasks"]
+    include=["app.worker.tasks", "app.worker.inference_sim_task"]
 )
 
 # """
@@ -36,7 +33,7 @@ celery_app = Celery(
 # 允许Worker发送任务事件（如任务开始/成功/失败）。结合监控工具（如Flower）可实现实时任务追踪。
 
 # """
-celery_app.conf.update(
+app.conf.update(
     task_track_started=True,
     task_serializer='json',
     result_serializer='json',
@@ -45,7 +42,10 @@ celery_app.conf.update(
 )
 
 
-@celery_app.task
-def create_task(task_type):
-    time.sleep(int(task_type) * 10)
-    return True
+# @app.task
+# def create_task(task_type):
+#     time.sleep(int(task_type) * 10)
+#     return True
+
+if __name__ == '__main__':
+    app.start()

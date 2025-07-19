@@ -1,13 +1,15 @@
 from datetime import datetime, timezone
 from typing import Dict, Optional, TypeVar
+from unittest.mock import Base
 from uuid import UUID, uuid4
+from pydantic import BaseModel
 from sqlmodel import Field, Relationship, SQLModel
-from sqlalchemy import TIMESTAMP
+from sqlalchemy import TIMESTAMP, table
 from enum import Enum
 from sqlalchemy.dialects.postgresql import JSONB
 
 
-class BaseSQLModel(SQLModel):
+class BaseSQLModel(SQLModel, table=False):
     """基础模型,所有表都应该有这些字段"""
     id: UUID = Field(
         default_factory=uuid4,
@@ -68,7 +70,7 @@ class User(UserBase, table=True):
     #     back_populates="user"
     # )
 
-class ConfigBaseSQLModel(BaseSQLModel, table=False):
+class ConfigBaseSQLModel(SQLModel, table=False):
     """配置基础模型"""
     # 外键
     # user_id: UUID = Field(
@@ -94,13 +96,22 @@ class ConfigBaseSQLModel(BaseSQLModel, table=False):
         description="配置参数"
     )
 
-
 TConfigBaseSQLModel = TypeVar("TConfigBaseSQLModel", bound=ConfigBaseSQLModel)
 
-class ModelConfig(ConfigBaseSQLModel, table=True):
-    __tablename__ = "model_configs"
-
+class ModelConfigBase(ConfigBaseSQLModel):
     type: str = Field(max_length=50)
+
+class ModelConfigCreate(ModelConfigBase):
+    pass
+
+class ModelConfigUpdate(ModelConfigBase):
+    id: UUID
+
+class ModelConfigPublic(ModelConfigBase):
+    pass
+
+class ModelConfig(BaseSQLModel, ModelConfigBase, table=True):
+    __tablename__ = "model_configs"
 
     # 关系
     # user: "User" = Relationship(back_populates="model_configs")
@@ -114,11 +125,14 @@ class SystemTypeEnum(str, Enum):
     NPU = "npu"
     GPU = "gpu"
 
-
-class SystemConfig(ConfigBaseSQLModel, table=True):
-    __tablename__ = "system_configs"
-
+class SystemConfigBase(ConfigBaseSQLModel):
     type: SystemTypeEnum
+
+class SystemConfigCreate(SystemConfigBase):
+    pass
+
+class SystemConfig(BaseSQLModel, SystemConfigBase, table=True):
+    __tablename__ = "system_configs"
 
     # 关系
     # user: "User" = Relationship(back_populates="system_configs")
@@ -129,7 +143,13 @@ class SystemConfig(ConfigBaseSQLModel, table=True):
         sa_relationship_kwargs={"uselist": False}
     )
 
-class InferenceRuntimeConfig(ConfigBaseSQLModel, table=True):
+class InferenceRuntimeConfigBase(ConfigBaseSQLModel):
+    pass
+
+class InferenceRuntimeConfigCreate(InferenceRuntimeConfigBase):
+    pass
+
+class InferenceRuntimeConfig(BaseSQLModel, InferenceRuntimeConfigBase, table=True):
     __tablename__ = "inference_runtime_configs"
 
     # 关系
@@ -153,9 +173,6 @@ class SimTaskBaseSQLModel(BaseSQLModel):
     """任务基础模型"""
     # 外键
     # user_id: UUID = Field(foreign_key="users.id")
-    model_config_id: UUID = Field(foreign_key="model_configs.id")
-    system_config_id: UUID = Field(foreign_key="system_configs.id")
-
     name: str = Field(index=True, unique=True, max_length=100)
     status: SimTaskStatusEnum = Field(default=SimTaskStatusEnum.PENDING)
     result: dict = Field(
@@ -167,11 +184,19 @@ class SimTaskBaseSQLModel(BaseSQLModel):
 
 TSimTaskBaseSQLModel = TypeVar("TSimTaskBaseSQLModel", bound=SimTaskBaseSQLModel)
 
+class InferenceSimTaskCreate(SQLModel):
+    name: str
+    model_config_: ModelConfigCreate
+    system_config: SystemConfigCreate
+    runtime_config: InferenceRuntimeConfigCreate
+
 class InferenceSimTask(SimTaskBaseSQLModel, table=True):
     __tablename__ = "inference_sim_tasks"
 
     # # 关系 - 使用字符串引用
     # user: "User" = Relationship(back_populates="inference_sim_tasks")
+    model_config_id: UUID = Field(foreign_key="model_configs.id")
+    system_config_id: UUID = Field(foreign_key="system_configs.id")
     runtime_config_id: UUID = Field(foreign_key="inference_runtime_configs.id")
 
     model_config_: "ModelConfig" = Relationship(back_populates="inference_sim_task")
